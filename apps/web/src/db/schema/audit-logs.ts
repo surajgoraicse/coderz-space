@@ -1,6 +1,6 @@
 import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import { user } from "./auth";
 import { auditActions, auditResourceType, role } from "./enums";
+import { user } from "./auth";
 
 export const auditLogs = pgTable("audit_logs", {
 	id: uuid("id").defaultRandom().primaryKey(),

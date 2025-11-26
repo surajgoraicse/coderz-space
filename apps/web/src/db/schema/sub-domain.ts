@@ -12,7 +12,7 @@ import { recordTypeEnum, status } from "./enums";
 // value of ttl will be auto if record is proxied otherwise some integer representing time in seconds.
 export const subDomain = pgTable("sub_domain", {
 	id: uuid("id").defaultRandom().primaryKey(),
-	ownerId: uuid("owner_id").references(() => user.id, {
+	ownerId: text("owner_id").references(() => user.id, {
 		onDelete: "cascade",
 	}),
 	name: text("name").notNull().unique(),
