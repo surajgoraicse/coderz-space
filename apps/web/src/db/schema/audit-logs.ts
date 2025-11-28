@@ -1,6 +1,8 @@
 import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import { auditActions, auditResourceType, role } from "./enums";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import z from "zod";
 import { user } from "./auth";
+import { auditActions, auditResourceType, role } from "./enums";
 
 export const auditLogs = pgTable("audit_logs", {
 	id: uuid("id").defaultRandom().primaryKey(),
@@ -15,3 +17,8 @@ export const auditLogs = pgTable("audit_logs", {
 	meta: text("meta"),
 	createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const SelectAuditLogSchema = createSelectSchema(auditLogs);
+export type SelectAuditLog = z.infer<typeof SelectAuditLogSchema>;
+export const InsertAuditLogSchema = createInsertSchema(auditLogs);
+export type InsertAuditLog = z.infer<typeof InsertAuditLogSchema>;

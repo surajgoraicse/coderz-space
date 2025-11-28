@@ -8,6 +8,20 @@
       "when": 1764134474966,
       "tag": "0000_wide_the_phantom",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1764266195043,
+      "tag": "0001_free_quasimodo",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1764308878341,
+      "tag": "0002_neat_ultragirl",
+      "breakpoints": true
     }
   ]
 }

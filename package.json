@@ -1,5 +1,5 @@
 {
-  "name": "unlimitted_dns",
+  "name": "coderz_space",
   "private": true,
   "scripts": {
     "build": "turbo run build",

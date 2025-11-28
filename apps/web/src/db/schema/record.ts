@@ -8,8 +8,10 @@ import {
 	timestamp,
 	uuid,
 } from "drizzle-orm/pg-core";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import z from "zod";
 import { recordTypeEnum, status } from "./enums";
-import { subDomain } from "./sub-domain";
+import { subDomain } from "./subdomain";
 
 export const record = pgTable("record", {
 	id: uuid("id").defaultRandom().primaryKey(),
@@ -33,3 +35,8 @@ export const record = pgTable("record", {
 		.$onUpdate(() => /* @__PURE__ */ new Date())
 		.notNull(),
 });
+
+export const SelectRecordSchema = createSelectSchema(record);
+export type SelectRecord = z.infer<typeof SelectRecordSchema>;
+export const InsertRecordSchema = createInsertSchema(record);
+export type InsertRecord = z.infer<typeof InsertRecordSchema>;

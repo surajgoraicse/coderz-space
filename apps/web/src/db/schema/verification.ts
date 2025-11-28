@@ -4,7 +4,9 @@ import {
 	verificationStatus,
 	verificationTypeEnum,
 } from "./enums";
-import { subDomain } from "./sub-domain";
+import { subDomain } from "./subdomain";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import z from "zod";
 
 export const verificationRecord = pgTable("verification_record", {
 	id: uuid("id").defaultRandom().primaryKey(),
@@ -24,3 +26,10 @@ export const verificationRecord = pgTable("verification_record", {
 		.$onUpdate(() => /* @__PURE__ */ new Date())
 		.notNull(),
 });
+
+
+
+export const SelectVerificationRecordSchema = createSelectSchema(verificationRecord);
+export type SelectVerificationRecord = z.infer<typeof SelectVerificationRecordSchema>;
+export const InsertVerificationRecordSchema = createInsertSchema(verificationRecord);
+export type InsertVerificationRecord = z.infer<typeof InsertVerificationRecordSchema>;

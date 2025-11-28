@@ -1,62 +1,39 @@
+import {
+	AUDIT_ACTIONS,
+	AUDIT_RESOURCE_TYPE,
+	PLATFORM,
+	RECORD_TYPES,
+	ROLES,
+	STATUS,
+	VERIFICATION_STATUS,
+} from "@/types/constants";
 import { pgEnum } from "drizzle-orm/pg-core";
 
 // auth
-export const role = pgEnum("role", ["ADMIN", "USER"]);
+export const role = pgEnum("role", ROLES);
 
 // record :
-export const recordTypeEnum = pgEnum("record_type", [
-	"A",
-	"AAAA",
-	"CNAME",
-	"TXT",
-	"CAA",
-]);
+export const recordTypeEnum = pgEnum("record_type", RECORD_TYPES);
 
 // subdomain
-export const status = pgEnum("status", [
-	"PENDING",
-	"PROVISIONING",
-	"ACTIVE",
-	"ERROR",
-	"DELETING",
-	"DELETED",
-	"BLOCKED",
-]);
+export const status = pgEnum("status", STATUS);
 
 // verification
-export const platformEnum = pgEnum("platform", ["VERCEL"]);
+export const platformEnum = pgEnum("platform", PLATFORM);
 export const verificationTypeEnum = pgEnum("verification_type", [
 	"TXT",
 	"HTTP",
 ]);
-export const verificationStatus = pgEnum("verfication_status", [
-	"PENDING",
-	"VERIFIED",
-	"FAILED",
-]);
+export const verificationStatus = pgEnum(
+	"verfication_status",
+	VERIFICATION_STATUS
+);
 
 // audit
 
-export const auditActions = pgEnum("audit_actions", [
-	"CREATE-SUBDOMAIN",
-	"DELETE-SUBDOMAIN",
-	"UPDATE-SUBDOMAIN",
-	"CREATE-RECORD",
-	"UPDATE-RECORD",
-	"DELETE-RECORD",
-	"VERIFICATION-START",
-	"VERIFICATION-FAILED",
-	"VERIFICATION-SUCCESS",
-	// CLOUDFLARE
-	"CLOUDFLARE-ERROR",
+export const auditActions = pgEnum("audit_actions", AUDIT_ACTIONS);
 
-	// USER
-	"USER-CREATED",
-	"USER-DELETED",
-	"USER-UPDATE",
-]);
-export const auditResourceType = pgEnum("audit_resource_type", [
-	"SUBDOMAIN",
-	"RECORD",
-	"USER",
-]);
+export const auditResourceType = pgEnum(
+	"audit_resource_type",
+	AUDIT_RESOURCE_TYPE
+);
