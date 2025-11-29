@@ -1,4 +1,4 @@
-export const ROLES = ["ADMIN", "USERS"] as const;
+export const ROLES = ["ADMIN", "USER"] as const;
 export type Roles = (typeof ROLES)[number];
 
 export const RECORD_TYPES = ["A", "AAAA", "CNAME", "TXT"] as const;
