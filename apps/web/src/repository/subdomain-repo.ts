@@ -1,29 +1,18 @@
 // src/repository/subdomain.ts (or similar)
 import { db } from "@/db/db";
 import { InsertSubDomain, SelectSubDomain, subDomain } from "@/db/schema";
-import { CreateSubdomain } from "@/types/zodSchemas";
 
-
-interface ISubDomainRepository{
-	createSubdomain() : Promise<SelectSubDomain | null>
-	checkSubDomainExistFromName(name : string) : Promise<boolean>
-	checkSubDomainExistFromSubName(subName : string) : Promise<boolean>
-	
+interface ISubDomainRepository {
+	createSubdomain(): Promise<SelectSubDomain | null>;
+	checkSubDomainExistFromName(name: string): Promise<boolean>;
+	checkSubDomainExistFromSubName(subName: string): Promise<boolean>;
 }
 
-
-export async function createSubDomain(data: CreateSubdomain) {
-	const { name, ownerId, fqdn } = data;
+export async function insertSubDomain(data: InsertSubDomain) {
+	const { name, ownerId } = data;
 
 	// 1. MUST use .returning() to get the inserted data as a clean array of objects
-	const insertedRows = await db
-		.insert(subDomain)
-		.values({
-			name,
-			ownerId,
-			fqdn,
-		})
-		.returning(); // 👈 ADD THIS BACK
+	const insertedRows = await db.insert(subDomain).values(data).returning(); // 👈 ADD THIS BACK
 
 	console.log("..... inserted row............");
 	console.log(insertedRows);
@@ -48,7 +37,68 @@ export async function getSubDomainFromId(id: string) {
 }
 export async function getSubDomainFromSubName(subName: string) {
 	const find = await db.query.subDomain.findFirst({
-		where: (subDomain, { eq }) => eq(subDomain.subDomainName, subName),
+		where: (subDomain, { eq }) => eq(subDomain.subName, subName),
 	});
 	return find;
 }
+
+export function getSubNameFromName(name: string) {
+	let nameArr = name.trim().split(".");
+	nameArr.pop();
+	nameArr.pop();
+	return nameArr.join(".");
+}
+// utils/domain-validator.ts
+export class DomainValidator {
+	private readonly baseDomain: string;
+
+	constructor(baseDomain: string) {
+		if (!baseDomain) {
+			throw new Error("Base domain is required");
+		}
+
+		// Normalize to lowercase (DNS is case-insensitive)
+		this.baseDomain = baseDomain.toLowerCase();
+	}
+
+	validate(fullDomain: string): boolean {
+		if (!fullDomain) return false;
+
+		const domain = fullDomain.toLowerCase().trim();
+		const base = `.${this.baseDomain}`;
+
+		// Must end with ".coderz.space"
+		if (!domain.endsWith(base)) return false;
+
+		// Extract the subdomain part before ".coderz.space"
+		const sub = domain.slice(0, domain.length - base.length);
+
+		if (!sub) return false;
+
+		// Disallow ".."
+		if (sub.includes("..")) return false;
+
+		// Split by dot
+		const labels = sub.split(".");
+
+		// RFC 1035 compliant label regex:
+		// - 1–63 chars
+		// - alphanumeric or hyphen
+		// - cannot start/end with hyphen
+		const labelRegex = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+
+		for (const label of labels) {
+			if (!labelRegex.test(label)) {
+				return false;
+			}
+		}
+
+		// Total length must not exceed 253 chars (DNS rule)
+		if (domain.length > 253) return false;
+
+		return true;
+	}
+}
+export const nameValidator = new DomainValidator(
+	process.env.DOMAIN || "coderz.space"
+);

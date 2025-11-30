@@ -1,4 +1,6 @@
 import { db } from "@/db/db"; // your drizzle instance
+import { ApiError } from "@/lib/api-error";
+import { headers } from "next/headers";
 import * as schema from "@/db/schema/auth";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -19,11 +21,30 @@ export const auth = betterAuth({
 			clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
 		},
 	},
+	user: {
+		additionalFields: {
+			role: {
+				type: "string",
+				required: false,
+				defaultValue: "USER",
+				input: false,
+			},
+		},
+	},
 });
 
-async function _getCurrentUser({
-	withFullUser = false,
-	redirectIfNotFound = false,
-}) {}
-
-
+export async function getUserSession() {
+	const session = await auth.api.getSession({
+		headers: await headers(),
+	});
+	return session;
+}
+export async function checkUserType() {
+	const session = await auth.api.getSession({
+		headers: await headers(),
+	});
+	if (!session) {
+		return Response.json(new ApiError(401, "Unauthorized Login first"));
+	}
+	return session.user.role;
+}

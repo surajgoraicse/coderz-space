@@ -1,12 +1,11 @@
 import handleError, { ApiError } from "@/lib/api-error";
 import ApiResponse from "@/lib/api-response";
-import {
-	validateRecordContent,
-	validateRecordName,
-} from "@/repository/record-repo";
+import { recordRepo } from "@/repository/record-repo";
 import { getSubDomainFromId } from "@/repository/subdomain-repo";
-import { cloudflareClient } from "@/service/cloudflare-service";
-import { createRecordReqBody } from "@/types/zodSchemas";
+import cloudflareService, {
+	cloudflareClient,
+} from "@/service/cloudflare-service";
+import { createRecordReqBody } from "@/types/zod-schema";
 import { NextRequest } from "next/server";
 
 // get all registered dns record
@@ -41,9 +40,9 @@ export async function POST(req: NextRequest) {
 	 * 		save in the db
 	 * 			- if falied to save in the db
 	 * 			remove the cf record.
-	 * 
+	 *
 	 * methods req : validateRecordName, validateRecordContent,  createCFRecord(), createDBRecord()
-	 * 
+	 *
 	 */
 
 	try {
@@ -68,21 +67,18 @@ export async function POST(req: NextRequest) {
 				}
 			);
 		}
-		const fqdn = find.fqdn;
-		const checkCNameExist = await validateRecordName(type, subDomainId);
-		if (checkCNameExist) {
-			return Response.json(
-				new ApiError(400, "Record for this name alreay exists"),
-				{
-					status: 400,
-					statusText: "BAD REQUEST",
-				}
-			);
-		}
-		const validateContent = await validateRecordContent(content, type);
-		if (!validateContent) {
-			return Response.json(
-				new ApiError(400, "Content Validation Failed"),
+		const isTypeValid = await recordRepo.validateRecordType(
+			type,
+			subDomainId
+		);
+		if (!isTypeValid.success) {
+			return (
+				Response.json(
+					new ApiError(
+						400,
+						isTypeValid.message || "Type Validation Failed"
+					)
+				),
 				{
 					status: 400,
 					statusText: "BAD REQUEST",
@@ -90,23 +86,77 @@ export async function POST(req: NextRequest) {
 			);
 		}
 
-		const record = await cloudflareClient.dns.records.create({
-			zone_id: process.env.ZONE_ID!,
-			name: fqdn,
+		const isValidContent = recordRepo.validateRecordContext(content, type);
+		if (!isValidContent.success) {
+			return (
+				Response.json(
+					new ApiError(
+						400,
+						isValidContent.message || "Content Validation Failed"
+					)
+				),
+				{
+					status: 400,
+					statusText: "BAD REQUEST",
+				}
+			);
+		}
+
+		const record = await cloudflareService.createCFRecord({
+			name: find.name,
 			type,
 			ttl,
 			proxied,
 			content,
 			comment,
 		});
-		console.log("................record created.....................");
-		console.log(record);
-		console.log("................record created.....................");
+		if (!record) {
+			return Response.json(
+				new ApiError(500, "Failed to create record in Cloudflare"),
+				{
+					status: 500,
+					statusText: "Internal Server Error",
+				}
+			);
+		}
+		const dbRecord = await recordRepo.createRecordDb({
+			subDomainId,
+			providerRecordId: record.id,
+			type,
+			content,
+			ttl,
+			proxied: record?.proxied || false,
+			comment: record?.comment || "",
+			version: 1,
+			status: "PENDING",
+		});
+		if (!dbRecord) {
+			// rollback cf record
+			await cloudflareService.deleteCFRecord(record.id);
+			return Response.json(
+				new ApiError(
+					500,
+					"Failed to save record in DB, rolled back Cloudflare record"
+				),
+				{
+					status: 500,
+					statusText: "Internal Server Error",
+				}
+			);
+		}
+		// success
+
+		console.log(
+			"................record created in CF....................."
+		);
+		console.log("cf record : ", record);
+		console.log("db record : ", dbRecord);
+		console.log(
+			"................record created in CF....................."
+		);
 
 		return Response.json(new ApiResponse(201, "record created", record));
 	} catch (error) {
 		return handleError(error);
 	}
 }
-export async function PUT() {}
-export async function DELETE() {}

@@ -1,3 +1,4 @@
+import { CFRecord } from "@/types/zod-schema";
 import Cloudflare from "cloudflare";
 
 export const cloudflareClient = new Cloudflare({
@@ -6,28 +7,65 @@ export const cloudflareClient = new Cloudflare({
 const client = cloudflareClient;
 
 interface ICloudflareService {
-	createCFRecord(): Promise<Cloudflare.DNS.Records.RecordResponse>;
-	updateCFRecord(): Promise<Cloudflare.DNS.Records.RecordResponse>;
-	listAllCFRecords(): Promise<Cloudflare.DNS.Records.RecordResponse>;
-	deleteCFRecord(): Promise<Cloudflare.DNS.Records.RecordDeleteResponse>;
+	createCFRecord(
+		record: CFRecord
+	): Promise<Cloudflare.DNS.Records.RecordResponse>;
+	updateCFRecord(
+		record: CFRecord,
+		recordId: string
+	): Promise<Cloudflare.DNS.Records.RecordResponse>;
+	listAllCFRecords(): Promise<Cloudflare.DNS.Records.RecordResponse[]>;
+	deleteCFRecord(
+		recordId: string
+	): Promise<Cloudflare.DNS.Records.RecordDeleteResponse>;
 }
 
-// class CloudflareService implements ICloudflareService {
+class CloudflareService implements ICloudflareService {
+	zone_id: string;
+	constructor(zone_id: string) {
+		this.zone_id = zone_id;
+	}
 
-// }
+	async createCFRecord(record: CFRecord) {
+		const recordResponse = await client.dns.records.create({
+			name: record.name,
+			zone_id: this.zone_id,
+			type: record.type,
+			ttl: record.ttl,
+			proxied: record.proxied,
+			content: record.content,
+			comment: record.comment || "",
+		});
+		return recordResponse;
+	}
 
-export async function createCloudflareRecord() {
-	const recordResponse = await cloudflareClient.dns.records.create({
-		zone_id: "023e105f4ecef8ad9ca31a8372d0c353",
-		name: "example.com",
-		ttl: 3600,
-		type: "A",
-	});
-	return recordResponse;
+	async listAllCFRecords() {
+		const recordList = [];
+		for await (const recordResponse of cloudflareClient.dns.records.list({
+			zone_id: this.zone_id,
+		})) {
+			recordList.push(recordResponse);
+			console.log(recordResponse);
+		}
+		return recordList;
+	}
+	async updateCFRecord(record: CFRecord, recordId: string) {
+		return await client.dns.records.edit(recordId, {
+			name: record.name,
+			zone_id: this.zone_id,
+			type: record.type,
+			ttl: record.ttl,
+			proxied: record.proxied,
+			content: record.content,
+			comment: record.comment || "",
+		});
+	}
+	async deleteCFRecord(recordId: string) {
+		return await client.dns.records.delete(recordId, {
+			zone_id: this.zone_id,
+		});
+	}
 }
 
-async function temp() {
-	return await client.dns.records.delete("023e105f4ecef8ad9ca31a8372d0c353", {
-		zone_id: "023e105f4ecef8ad9ca31a8372d0c353",
-	});
-}
+const cloudflareService = new CloudflareService(process.env.ZONE_ID!);
+export default cloudflareService;

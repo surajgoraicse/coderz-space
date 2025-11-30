@@ -19,12 +19,13 @@ export const RecordSchema = createRecordReqBody.extend({
 });
 
 export type Record = z.infer<typeof RecordSchema>;
+export type CFRecord = Pick<Record, "name" | "type" | "ttl" | "proxied" | "content" | "comment">
 
-export const createSubdomainReqBody = z.object({
-	ownerId: z.string(),
-	name: z.string(),
+
+export const createSubDomainReqBody = z.object({
+	name: z.string().trim(),
 });
-export type CreateSubdomainReqBody = z.infer<typeof createSubdomainReqBody>;
+export type CreateSubdomainReqBody = z.infer<typeof createSubDomainReqBody>;
 
 export const createSubdomainSchema = z.object({
 	ownerId: z.string(),

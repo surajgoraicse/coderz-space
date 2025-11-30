@@ -8,7 +8,7 @@ import {
 	timestamp,
 	uuid,
 } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { createInsertSchema, createSelectSchema, Json } from "drizzle-zod";
 import z from "zod";
 import { recordTypeEnum, status } from "./enums";
 import { subDomain } from "./sub-domain";
@@ -25,10 +25,12 @@ export const record = pgTable("record", {
 	content: text("content").notNull(),
 	ttl: integer("ttl").default(300).notNull(),
 	proxied: boolean("proxied").default(true).notNull(),
-	raw: json("raw"),
+	comment: text("comment"),
+	raw: json("raw").$type<Json>(),
 	status: status("status").default("PENDING").notNull(),
 	version: smallint("version").default(1).notNull(),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
+
 	updatedAt: timestamp("updated_at")
 		.defaultNow()
 		.$onUpdate(() => /* @__PURE__ */ new Date())

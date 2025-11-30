@@ -1,7 +1,7 @@
 CREATE TYPE "public"."audit_actions" AS ENUM('CREATE-SUBDOMAIN', 'DELETE-SUBDOMAIN', 'UPDATE-SUBDOMAIN', 'CREATE-RECORD', 'UPDATE-RECORD', 'DELETE-RECORD', 'VERIFICATION-START', 'VERIFICATION-FAILED', 'VERIFICATION-SUCCESS', 'CLOUDFLARE-ERROR', 'USER-CREATED', 'USER-DELETED', 'USER-UPDATE');--> statement-breakpoint
 CREATE TYPE "public"."audit_resource_type" AS ENUM('SUBDOMAIN', 'RECORD', 'USER');--> statement-breakpoint
 CREATE TYPE "public"."platform" AS ENUM('VERCEL');--> statement-breakpoint
-CREATE TYPE "public"."record_type" AS ENUM('A', 'AAAA', 'CNAME', 'TXT', 'CAA');--> statement-breakpoint
+CREATE TYPE "public"."record_type" AS ENUM('A', 'AAAA', 'CNAME', 'TXT');--> statement-breakpoint
 CREATE TYPE "public"."role" AS ENUM('ADMIN', 'USER');--> statement-breakpoint
 CREATE TYPE "public"."status" AS ENUM('PENDING', 'PROVISIONING', 'ACTIVE', 'ERROR', 'DELETING', 'DELETED', 'BLOCKED');--> statement-breakpoint
 CREATE TYPE "public"."verfication_status" AS ENUM('PENDING', 'VERIFIED', 'FAILED');--> statement-breakpoint
@@ -50,6 +50,7 @@ CREATE TABLE "user" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"email" text NOT NULL,
+	"role" "role" DEFAULT 'USER' NOT NULL,
 	"email_verified" boolean DEFAULT false NOT NULL,
 	"image" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
@@ -77,7 +78,6 @@ CREATE TABLE "record" (
 	"raw" json,
 	"status" "status" DEFAULT 'PENDING' NOT NULL,
 	"version" smallint DEFAULT 1 NOT NULL,
-	"last_synced_at" timestamp DEFAULT now(),
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "record_provider_record_id_unique" UNIQUE("provider_record_id")
@@ -85,18 +85,18 @@ CREATE TABLE "record" (
 --> statement-breakpoint
 CREATE TABLE "sub_domain" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"owner_id" text,
+	"owner_id" text NOT NULL,
+	"sub_name" text NOT NULL,
 	"name" text NOT NULL,
-	"fqdn" text NOT NULL,
 	"desired_record_type" "record_type",
 	"desired_target" text,
-	"desired_proxied" boolean DEFAULT true,
+	"desired_proxied" boolean,
 	"desired_ttl" integer,
 	"status" "status" DEFAULT 'PENDING',
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "sub_domain_name_unique" UNIQUE("name"),
-	CONSTRAINT "sub_domain_fqdn_unique" UNIQUE("fqdn")
+	CONSTRAINT "sub_domain_sub_name_unique" UNIQUE("sub_name"),
+	CONSTRAINT "sub_domain_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
 CREATE TABLE "verification_record" (

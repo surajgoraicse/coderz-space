@@ -1,7 +1,7 @@
 import handleError, { ApiError } from "@/lib/api-error";
 import ApiResponse from "@/lib/api-response";
 import { cloudflareClient } from "@/lib/cloudflare";
-import { createRecordSchema } from "@/types/zodSchemas";
+import { createRecordSchema } from "@/types/zod-schema";
 import { NextRequest } from "next/server";
 
 export async function PUT(
