@@ -2,24 +2,62 @@ import handleError, { ApiError } from "@/lib/api-error";
 import ApiResponse from "@/lib/api-response";
 import { recordRepo } from "@/repository/record-repo";
 import { getSubDomainFromId } from "@/repository/subdomain-repo";
-import cloudflareService, {
-	cloudflareClient,
-} from "@/service/cloudflare-service";
+import cloudflareService from "@/service/cloudflare-service";
 import { createRecordReqBody } from "@/types/zod-schema";
 import { NextRequest } from "next/server";
 
-// get all registered dns record
-export async function GET() {
+// use this in admin route
+// export async function GET() {
+// 	try {
+// 		const recordList = [];
+// 		for await (const recordResponse of cloudflareClient.dns.records.list({
+// 			zone_id: process.env.ZONE_ID!,
+// 		})) {
+// 			recordList.push(recordResponse);
+// 			console.log(recordResponse);
+// 		}
+
+// 		return Response.json(new ApiResponse(200, "success", recordList));
+// 	} catch (error) {
+// 		return handleError(error);
+// 	}
+// }
+
+// get all registered dns record of a user and specific project
+export async function GET(req: NextRequest) {
 	try {
-		const recordList = [];
-		for await (const recordResponse of cloudflareClient.dns.records.list({
-			zone_id: process.env.ZONE_ID!,
-		})) {
-			recordList.push(recordResponse);
-			console.log(recordResponse);
+		const { searchParams } = new URL(req.url);
+		const subDomainId = searchParams.get("subDomainId");
+		if (!subDomainId) {
+			return Response.json(
+				new ApiResponse(400, "Sub Domain ID not found", false),
+				{
+					status: 400,
+					statusText: "Bad Request",
+				}
+			);
 		}
 
-		return Response.json(new ApiResponse(200, "success", recordList));
+		const records =
+			await recordRepo.getAllRecordsFromSubDomainId(subDomainId);
+		if (!records) {
+			return Response.json(
+				new ApiResponse(
+					404,
+					"No records found for this subdomain",
+					false
+				),
+				{
+					status: 404,
+					statusText: "Not Found",
+				}
+			);
+		}
+
+		return Response.json(new ApiResponse(200, "Success", records), {
+			status: 200,
+			statusText: "OK",
+		});
 	} catch (error) {
 		return handleError(error);
 	}
@@ -33,7 +71,7 @@ export async function POST(req: NextRequest) {
 	 * 		- if it is a cname then do not allow any other record (allow txt for verification)
 	 * 		- do not allow duplicate records
 	 * 		- otherwise allow based on some rule
-	 * validate record name
+	 * validate record name and generate fqdn
 	 * validate record content
 	 * create record using cf api
 	 * success :
@@ -54,12 +92,11 @@ export async function POST(req: NextRequest) {
 		}
 		console.log(1);
 
-		const { subDomainId, type, ttl, proxied, content, comment } =
+		const { subDomainId, type, ttl, proxied, content, comment, name } =
 			parseResult.data;
 
 		const find = await getSubDomainFromId(subDomainId);
 		console.log(2);
-
 
 		if (!find) {
 			return Response.json(
@@ -92,7 +129,6 @@ export async function POST(req: NextRequest) {
 		}
 		console.log(4);
 
-
 		const isValidContent = recordRepo.validateRecordContext(content, type);
 		if (!isValidContent.success) {
 			return (
@@ -109,10 +145,27 @@ export async function POST(req: NextRequest) {
 			);
 		}
 		console.log(5);
+		const fqdn = `${name}.${process.env.DOMAIN}`;
 
+		const isNameValid = await recordRepo.validateRecordName(fqdn);
+		if (!isNameValid.success) {
+			return (
+				Response.json(
+					new ApiError(
+						400,
+						isNameValid.message ||
+							`Name Validation Failed : ${fqdn} `
+					)
+				),
+				{
+					status: 400,
+					statusText: "BAD REQUEST",
+				}
+			);
+		}
 
 		const record = await cloudflareService.createCFRecord({
-			name: find.name,
+			name: fqdn,
 			type,
 			ttl,
 			proxied,
@@ -128,7 +181,7 @@ export async function POST(req: NextRequest) {
 				}
 			);
 		}
-		console.log(6);
+		console.log(6, record);
 
 		const dbRecord = await recordRepo.createRecordDb({
 			subDomainId,
@@ -136,6 +189,7 @@ export async function POST(req: NextRequest) {
 			type,
 			content,
 			ttl,
+			name,
 			proxied: record?.proxied || false,
 			comment: record?.comment || "",
 			version: 1,
@@ -157,7 +211,6 @@ export async function POST(req: NextRequest) {
 		}
 		// success
 		console.log(7);
-
 
 		console.log(
 			"................record created in CF....................."

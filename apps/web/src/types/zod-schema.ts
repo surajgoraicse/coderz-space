@@ -3,6 +3,7 @@ import { RECORD_TYPES, STATUS } from "./constants";
 
 export const createRecordReqBody = z.object({
 	subDomainId: z.uuid(),
+	name: z.string().trim(),
 	type: z.enum(RECORD_TYPES),
 	ttl: z.number().min(60).default(300),
 	proxied: z.boolean().default(true),
@@ -35,7 +36,6 @@ export const createSubDomainSchema = createSubDomainReqBody.extend({
 export type CreateSubDomain = z.infer<typeof createSubDomainSchema>;
 
 export const ProjectNameSchema = z.string().trim().min(2).max(30);
-
 
 // schema for records
 export const ipv4Schema = z.ipv4();

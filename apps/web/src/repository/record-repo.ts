@@ -8,14 +8,16 @@ import {
 	ipv6Schema,
 	txtSchema,
 } from "@/types/zod-schema";
+import { eq } from "drizzle-orm";
 type UpdateRecord = Pick<
 	InsertRecord,
-	"comment" | "content" | "proxied" | "ttl" | "type"
+	"comment" | "content" | "proxied" | "ttl" | "type" | "name"
 >;
 
 interface IRecordRepository {
 	getAllRecordsFromSubDomainId(id: string): Promise<SelectRecord[] | null>;
 	getAllRecordsIdFromSubDomainId(id: string): Promise<{ id: string }[]>;
+	getSubDomainIdFromRecordId(id: string): Promise<string | null>;
 	createRecordDb(record: InsertRecord): Promise<SelectRecord | undefined>;
 	updateRecordDb(record: UpdateRecord, id: string): Promise<SelectRecord>;
 	deleteRecordDb(id: string): Promise<SelectRecord | null>;
@@ -25,7 +27,7 @@ interface IRecordRepository {
 	): Promise<{ success: boolean; message: string | undefined }>;
 	validateRecordName(
 		name: string
-	): Promise<{ success: boolean; message: string | undefined }>;
+	): Promise<{ success: boolean; message?: string }>;
 	validateRecordContext(
 		content: string,
 		type: RecordTypes
@@ -36,6 +38,15 @@ class RecordRepo implements IRecordRepository {
 	db: DB;
 	constructor(db: DB) {
 		this.db = db;
+	}
+	async getSubDomainIdFromRecordId(id: string): Promise<string | null> {
+		const result = await this.db.query.record.findFirst({
+			where: (records, { eq }) => eq(records.id, id),
+			columns: {
+				subDomainId: true,
+			},
+		});
+		return result?.subDomainId || null;
 	}
 	async updateRecordDb(
 		recordData: UpdateRecord,
@@ -49,8 +60,9 @@ class RecordRepo implements IRecordRepository {
 				proxied: recordData.proxied,
 				ttl: recordData.ttl,
 				type: recordData.type,
+				name: recordData.name,
 			})
-			.where((r, { eq }) => eq(r.id, id))
+			.where(eq(record.id, id))
 			.returning();
 		return updatedRecord[0];
 	}
@@ -58,7 +70,7 @@ class RecordRepo implements IRecordRepository {
 		// 1. Use a more descriptive plural variable name (optional, but good practice)
 		const deletedRecords = await this.db
 			.delete(record)
-			.where((record, { eq }) => eq(record.id, id))
+			.where(eq(record.id, id))
 			.returning();
 
 		// 2. Explicitly check if the record was found and deleted
@@ -127,42 +139,85 @@ class RecordRepo implements IRecordRepository {
 		};
 	}
 
+	// async validateRecordName(
+	// 	name: string
+	// ): Promise<{ success: boolean; message: string | undefined }> {
+	// 	// 1. Basic format validation (must end with coderz.space)
+	// 	if (!name.endsWith(".coderz.space")) {
+	// 		return {
+	// 			success: false,
+	// 			message: "Invalid record name. Must end with .coderz.space",
+	// 		};
+	// 	}
+
+	// 	// 2. Ensure there's something before coderz.space
+	// 	const parts = name.replace(".coderz.space", "").split(".");
+	// 	if (parts.some((p) => p.trim().length === 0)) {
+	// 		return {
+	// 			success: false,
+	// 			message: "Invalid subdomain structure",
+	// 		};
+	// 	}
+
+	// 	// 3. Check if already exists in DB
+	// 	const existing = await this.db.query.subDomain.findFirst({
+	// 		where: (tbl, { eq }) => eq(tbl.name, name),
+	// 	});
+
+	// 	if (existing) {
+	// 		return {
+	// 			success: false,
+	// 			message: "Name already exists in the database",
+	// 		};
+	// 	}
+
+	// 	// 4. All good
+	// 	return {
+	// 		success: true,
+	// 		message: "Valid record name",
+	// 	};
+	// }
 	async validateRecordName(
 		name: string
-	): Promise<{ success: boolean; message: string | undefined }> {
-		// 1. Basic format validation (must end with coderz.space)
-		if (!name.endsWith(".coderz.space")) {
+	): Promise<{ success: boolean; message?: string }> {
+		// 1. Basic validation — ensure the user provided only the subdomain
+		if (!name || typeof name !== "string") {
 			return {
 				success: false,
-				message: "Invalid record name. Must end with .coderz.space",
+				message: "Name is required",
 			};
 		}
 
-		// 2. Ensure there's something before coderz.space
-		const parts = name.replace(".coderz.space", "").split(".");
-		if (parts.some((p) => p.trim().length === 0)) {
+		// Allow: letters, digits, hyphens — standard subdomain rules
+		const subdomainPattern = /^[a-zA-Z0-9-]+$/;
+
+		if (!subdomainPattern.test(name)) {
 			return {
 				success: false,
-				message: "Invalid subdomain structure",
+				message:
+					"Invalid subdomain. Only letters, numbers and hyphens are allowed",
 			};
 		}
 
-		// 3. Check if already exists in DB
-		const existing = await this.db.query.subDomain.findFirst({
+		// 2. Compose actual full domain
+		// const fullDomain = `${name}.coderz.space`;
+
+		// 3. Check existence in DB
+		const existing = await this.db.query.record.findFirst({
 			where: (tbl, { eq }) => eq(tbl.name, name),
 		});
 
 		if (existing) {
 			return {
 				success: false,
-				message: "Name already exists in the database",
+				message: "This subdomain is already taken",
 			};
 		}
 
-		// 4. All good
+		// 4. Everything is valid
 		return {
 			success: true,
-			message: "Valid record name",
+			message: "Valid subdomain",
 		};
 	}
 

@@ -14,16 +14,41 @@ interface ISubDomainRepository {
 	createSubDomainDb(
 		subDomainValue: CreateSubDomain
 	): Promise<SelectSubDomain | null>;
-	checkSubDomainExistFromName(name: string): Promise<boolean>;
+	updateSubDomainDb(
+		projectName: string,
+		subDomainId: string,
+		ownerId: string
+	): Promise<SelectSubDomain | null>;
+	checkSubDomainExistFromProjectName(
+		name: string,
+		ownerId: string
+	): Promise<boolean>;
 	checkSubDomainExistFromSubName(subName: string): Promise<boolean>;
-	deleteSubDomainDb(id: string): Promise<SelectSubDomain | null>;
-	getSubDomainFromId(id: string): Promise<SelectSubDomain | null>;
+	deleteSubDomainDb(
+		id: string,
+		ownerId: string
+	): Promise<SelectSubDomain | null>;
+	getSubDomainFromId(
+		id: string,
+		ownerId: string
+	): Promise<SelectSubDomain | null>;
+	getSubDomainFromIdUnsafe(id: string): Promise<SelectSubDomain | undefined>;
 }
 
 class SubDomainRepository implements ISubDomainRepository {
 	db: DB;
 	constructor(db: DB) {
 		this.db = db;
+	}
+	async getSubDomainFromIdUnsafe(
+		id: string
+	): Promise<SelectSubDomain | undefined> {
+		const find = await this.db.query.subDomain
+			.findFirst({
+				where: eq(subDomain.id, id),
+			})
+			
+		return find;
 	}
 	async createSubDomainDb(subDomainValue: CreateSubDomain) {
 		// const session = await getUserSession();
@@ -40,17 +65,44 @@ class SubDomainRepository implements ISubDomainRepository {
 			.returning();
 		return create[0];
 	}
-	async checkSubDomainExistFromName(name: string): Promise<boolean> {
-		throw new Error("Method not implemented.");
+	async updateSubDomainDb(
+		projectName: string,
+		subDomainId: string,
+		ownerId: string
+	): Promise<SelectSubDomain | null> {
+		const [update] = await this.db
+			.update(subDomain)
+			.set({
+				projectName: projectName,
+			})
+			.where(
+				eq(subDomain.id, subDomainId) && eq(subDomain.ownerId, ownerId)
+			)
+			.returning();
+		return update;
+	}
+	async checkSubDomainExistFromProjectName(
+		projectName: string,
+		ownerId: string
+	): Promise<boolean> {
+		const find = await this.db.query.subDomain.findFirst({
+			where: (table, { eq }) =>
+				eq(table.projectName, projectName) &&
+				eq(table.ownerId, ownerId),
+		});
+		return !!find;
 	}
 	async checkSubDomainExistFromSubName(subName: string): Promise<boolean> {
 		throw new Error("Method not implemented.");
 	}
-	async deleteSubDomainDb(id: string): Promise<SelectSubDomain | null> {
+	async deleteSubDomainDb(
+		id: string,
+		ownerId: string
+	): Promise<SelectSubDomain | null> {
 		try {
 			const deletedSubDomain = await db
 				.delete(subDomain)
-				.where(eq(subDomain.id, id))
+				.where(eq(subDomain.id, id) && eq(subDomain.ownerId, ownerId))
 				.returning();
 			if (deletedSubDomain.length === 0) {
 				return null;
@@ -62,10 +114,14 @@ class SubDomainRepository implements ISubDomainRepository {
 		}
 	}
 
-	async getSubDomainFromId(id: string): Promise<SelectSubDomain | null> {
+	async getSubDomainFromId(
+		id: string,
+		ownerId: string
+	): Promise<SelectSubDomain | null> {
 		try {
 			const find = await db.query.subDomain.findFirst({
-				where: (subdoman, { eq }) => eq(subdoman.id, id),
+				where: (subdoman, { eq }) =>
+					eq(subdoman.id, id) && eq(subdoman.ownerId, ownerId),
 			});
 			if (!find) {
 				return null;

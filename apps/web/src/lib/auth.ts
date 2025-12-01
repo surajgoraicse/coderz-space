@@ -1,9 +1,10 @@
 import { db } from "@/db/db"; // your drizzle instance
-import { ApiError } from "@/lib/api-error";
-import { headers } from "next/headers";
 import * as schema from "@/db/schema/auth";
+import { ApiError } from "@/lib/api-error";
+import { subDomainRepo } from "@/repository/subdomain-repo";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { headers } from "next/headers";
 
 export const auth = betterAuth({
 	baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
@@ -47,4 +48,14 @@ export async function checkUserType() {
 		return Response.json(new ApiError(401, "Unauthorized Login first"));
 	}
 	return session.user.role;
+}
+export async function getUserIdFromSession() {
+	const session = await getUserSession();
+	return session?.user?.id;
+}
+
+export async function checkOwnershipFromSubDomainId(subDomainId: string) {
+	const ownerId = await getUserIdFromSession();
+	const subDomain = await subDomainRepo.getSubDomainFromIdUnsafe(subDomainId);
+	return subDomain?.ownerId === ownerId;
 }

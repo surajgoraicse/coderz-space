@@ -21,7 +21,7 @@ export const record = pgTable("record", {
 		})
 		.notNull(),
 	providerRecordId: text("provider_record_id").notNull().unique(),
-	name: text("name").notNull().unique(),
+	name: text("name").notNull().unique(), // suraj ☑️, suraj.coderz.space ❌ 
 	type: recordTypeEnum("type").notNull(),
 	content: text("content").notNull(),
 	ttl: integer("ttl").notNull(),
@@ -41,3 +41,6 @@ export const SelectRecordSchema = createSelectSchema(record);
 export type SelectRecord = z.infer<typeof SelectRecordSchema>;
 export const InsertRecordSchema = createInsertSchema(record);
 export type InsertRecord = z.infer<typeof InsertRecordSchema>;
+
+
+// NOTE: the name in db is just the subname eg suraj, hack but name in cloudflare is fqdn eg suraj.coderz.space

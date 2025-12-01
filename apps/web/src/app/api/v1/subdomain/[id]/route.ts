@@ -1,9 +1,11 @@
-import handleError from "@/lib/api-error";
+import handleError, { ApiError } from "@/lib/api-error";
 import ApiResponse from "@/lib/api-response";
+import { getUserIdFromSession } from "@/lib/auth";
 import { recordRepo } from "@/repository/record-repo";
-import { subDomainRepository } from "@/repository/subdomain-repo";
+import { subDomainRepo } from "@/repository/subdomain-repo";
 import cloudflareService from "@/service/cloudflare-service";
-import { NextRequest } from "next/server";
+import { createSubDomainReqBody, ProjectNameSchema } from "@/types/zod-schema";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
 	req: NextRequest,
@@ -21,9 +23,18 @@ export async function GET(
 				}
 			);
 		}
+		const ownerId = await getUserIdFromSession();
+		if (!ownerId) {
+			return Response.json(new ApiResponse(401, "Unauthorized", false), {
+				status: 401,
+				statusText: "Unauthorized",
+			});
+		}
 		console.log("hello 2");
-		const subDomain =
-			await subDomainRepository.getSubDomainFromId(subDomainId);
+		const subDomain = await subDomainRepo.getSubDomainFromId(
+			subDomainId,
+			ownerId
+		);
 		console.log("hello 3", subDomain);
 
 		if (!subDomain) {
@@ -65,8 +76,8 @@ export async function DELETE(
 	// return subdomain details
 	// methods required : deleteCFRecord(), getAllRecordsIdFromSubDomainId()
 	try {
-		const recordId = (await params)?.id;
-		if (!recordId) {
+		const subDomainId = (await params)?.id;
+		if (!subDomainId) {
 			return Response.json(
 				new ApiResponse(400, "Sub Domain ID not found", false),
 				{
@@ -75,9 +86,16 @@ export async function DELETE(
 				}
 			);
 		}
+		const ownerId = await getUserIdFromSession();
+		if (!ownerId) {
+			return Response.json(new ApiResponse(401, "Unauthorized", false), {
+				status: 401,
+				statusText: "Unauthorized",
+			});
+		}
 		console.log(1);
 		const recordsToDelete =
-			await recordRepo.getAllRecordsIdFromSubDomainId(recordId);
+			await recordRepo.getAllRecordsIdFromSubDomainId(subDomainId);
 		console.log("2");
 		for (const record of recordsToDelete) {
 			try {
@@ -93,8 +111,10 @@ export async function DELETE(
 			}
 		}
 		console.log(3);
-		const deletedSubDomain =
-			await subDomainRepository.deleteSubDomainDb(recordId);
+		const deletedSubDomain = await subDomainRepo.deleteSubDomainDb(
+			subDomainId,
+			ownerId
+		);
 		console.log(4);
 		if (!deletedSubDomain) {
 			return Response.json(
@@ -120,4 +140,86 @@ export async function DELETE(
 	} catch (error) {
 		return handleError(error);
 	}
+}
+
+export async function PUT(
+	req: NextResponse,
+	{ params }: { params: { id: string } }
+) {
+	const ownerId = await getUserIdFromSession();
+	if (!ownerId) {
+		return Response.json(new ApiResponse(401, "Unauthorized", false), {
+			status: 401,
+			statusText: "Unauthorized",
+		});
+	}
+	const subDomainId = (await params)?.id;
+	if (!subDomainId) {
+		return Response.json(
+			new ApiResponse(400, "Sub Domain ID not found", false),
+			{
+				status: 400,
+				statusText: "Bad Request",
+			}
+		);
+	}
+
+	const body = await req.json();
+	const parsedBody = createSubDomainReqBody.safeParse(body);
+	if (!parsedBody.success) {
+		return handleError(parsedBody.error);
+	}
+	const { projectName } = parsedBody.data;
+
+	const isValid = ProjectNameSchema.safeParse(projectName);
+	if (!isValid.success) {
+		return Response.json(
+			new ApiError(400, "Invalid Project Name", isValid.error),
+			{
+				status: 400,
+				statusText: "Bad Request",
+			}
+		);
+	}
+
+	const existingSubDomain =
+		await subDomainRepo.checkSubDomainExistFromProjectName(
+			projectName,
+			ownerId
+		);
+
+	if (existingSubDomain) {
+		return Response.json(
+			new ApiError(
+				404,
+				"Sub Domain Already Exists with this Project name"
+			),
+			{
+				status: 400,
+				statusText: "Bad Request",
+			}
+		);
+	}
+
+	const update = subDomainRepo.updateSubDomainDb(
+		projectName,
+		subDomainId,
+		ownerId
+	);
+	if (!update) {
+		return Response.json(
+			new ApiError(
+				500,
+				"Something went wrong, Sub domain update failed in DB"
+			),
+			{
+				status: 500,
+				statusText: "Something went wrong",
+			}
+		);
+	}
+	return Response.json(new ApiResponse(200, "Sub Domain Updated", update), {
+		status: 200,
+		statusText: "Sub Domain Updated",
+	});
 }

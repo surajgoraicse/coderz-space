@@ -1,5 +1,6 @@
 import handleError, { ApiError } from "@/lib/api-error";
 import ApiResponse from "@/lib/api-response";
+import { checkOwnershipFromSubDomainId } from "@/lib/auth";
 import { recordRepo } from "@/repository/record-repo";
 import { getSubDomainFromId } from "@/repository/subdomain-repo";
 import cloudflareService from "@/service/cloudflare-service";
@@ -23,7 +24,7 @@ export async function PUT(
 		if (!parsedResult.success) {
 			return handleError(parsedResult.error);
 		}
-		const { subDomainId, type, ttl, proxied, content, comment } =
+		const { subDomainId, type, ttl, proxied, content, comment, name } =
 			parsedResult.data;
 		const find = await getSubDomainFromId(subDomainId);
 		if (!find) {
@@ -69,9 +70,25 @@ export async function PUT(
 				}
 			);
 		}
+		const isNameValid = await recordRepo.validateRecordName(name);
+		if (!isNameValid.success) {
+			return (
+				Response.json(
+					new ApiError(
+						400,
+						isNameValid.message || "Name Validation Failed"
+					)
+				),
+				{
+					status: 400,
+					statusText: "BAD REQUEST",
+				}
+			);
+		}
+		const fqdn = `${name}.${process.env.DOMAIN}`;
 		const record = await cloudflareService.updateCFRecord(
 			{
-				name: find.name,
+				name: fqdn,
 				content,
 				type,
 				ttl,
@@ -97,6 +114,7 @@ export async function PUT(
 				proxied,
 				ttl,
 				type,
+				name,
 			},
 			id
 		);
@@ -128,13 +146,33 @@ export async function DELETE(
 	req: NextRequest,
 	{ params }: { params: { id: string } }
 ) {
-	try { 
+	try {
 		const id = (await params).id;
 		if (!id) {
 			return Response.json(new ApiError(400, "Record ID not found"), {
 				status: 400,
 				statusText: "Bad Request",
 			});
+		}
+		const subDomainId = await recordRepo.getSubDomainIdFromRecordId(id);
+		if (!subDomainId) {
+			return Response.json(
+				new ApiError(404, `Sub Domain Not Found : ${subDomainId} `),
+				{
+					status: 404,
+					statusText: "Not Found",
+				}
+			);
+		}
+		const checkOwnership = await checkOwnershipFromSubDomainId(subDomainId);
+		if (!checkOwnership) {
+			return Response.json(
+				new ApiError(403, "You are not the owner of this subdomain"),
+				{
+					status: 403,
+					statusText: "Forbidden",
+				}
+			);
 		}
 
 		const dbRecord = await recordRepo.deleteRecordDb(id);
@@ -189,9 +227,7 @@ export async function DELETE(
 				statusText: "Success",
 			}
 		);
-		
-	}
-	catch(error) {
+	} catch (error) {
 		return handleError(error);
 	}
 }
