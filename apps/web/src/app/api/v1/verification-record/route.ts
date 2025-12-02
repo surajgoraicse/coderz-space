@@ -2,6 +2,7 @@ import handleError, { ApiError } from "@/lib/api-error";
 import ApiResponse from "@/lib/api-response";
 import { verificationRepo } from "@/repository/verification-repo";
 import cloudflareService from "@/service/cloudflare-service";
+import { DrizzleQueryError } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -40,6 +41,9 @@ export const verificationRecordSchema = z.object({
 export type VerificationRecord = z.infer<typeof verificationRecordSchema>;
 
 export async function POST(req: NextRequest) {
+	// declare createCFRecord in outer scope so it's available in catch
+	let createCFRecord: any = null;
+
 	try {
 		// here id is subdomain id
 
@@ -50,8 +54,9 @@ export async function POST(req: NextRequest) {
 		}
 
 		const { content, subDomainId } = parsedResult.data;
-		const createCFRecord =
-			await cloudflareService.createVercelVerificationRecord({ content });
+		createCFRecord = await cloudflareService.createVercelVerificationRecord(
+			{ content }
+		);
 		// Validate it : check if it is created
 
 		const createRecordDB = await verificationRepo.createVerificationRecord({
@@ -64,8 +69,19 @@ export async function POST(req: NextRequest) {
 			ttl: 60,
 			status: "VERIFIED",
 		});
+		console.log("create db", createRecordDB);
 		if (!createRecordDB) {
-			await cloudflareService.deleteCFRecord(createCFRecord.id);
+		}
+		return Response.json(new ApiResponse(200, "Success", createRecordDB), {
+			status: 200,
+			statusText: "OK",
+		});
+	} catch (error) {
+		if (error instanceof DrizzleQueryError) {
+			// only attempt to delete the CF record if it was created
+			if (createCFRecord && createCFRecord.id) {
+				await cloudflareService.deleteCFRecord(createCFRecord.id);
+			}
 			return Response.json(
 				new ApiError(500, "Failed to create record in db"),
 				{
@@ -74,11 +90,6 @@ export async function POST(req: NextRequest) {
 				}
 			);
 		}
-		return Response.json(new ApiResponse(200, "Success", createRecordDB), {
-			status: 200,
-			statusText: "OK",
-		});
-	} catch (error) {
 		return handleError(error);
 	}
 }

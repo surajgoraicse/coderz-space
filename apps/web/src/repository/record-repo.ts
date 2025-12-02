@@ -11,10 +11,11 @@ import {
 import { eq } from "drizzle-orm";
 export type UpdateRecord = Pick<
 	InsertRecord,
-	"comment" | "content" | "proxied" | "ttl" | "type" | "name" 
+	"comment" | "content" | "proxied" | "ttl" | "type" | "name"
 >;
 
 interface IRecordRepository {
+	getRecordFromId(id: string): Promise<SelectRecord | undefined>;
 	getAllRecordsFromSubDomainId(id: string): Promise<SelectRecord[] | null>;
 	getAllRecordsIdFromSubDomainId(id: string): Promise<{ id: string }[]>;
 	getSubDomainIdFromRecordId(id: string): Promise<string | null>;
@@ -39,6 +40,13 @@ class RecordRepo implements IRecordRepository {
 	constructor(db: DB) {
 		this.db = db;
 	}
+	async getRecordFromId(id: string): Promise<SelectRecord | undefined> {
+		const record = await this.db.query.record.findFirst({
+			where: (records, { eq }) => eq(records.id, id),
+		});
+		return record;
+	}
+
 	async getSubDomainIdFromRecordId(id: string): Promise<string | null> {
 		console.log(`id value ${id}`);
 		const result = await this.db.query.record.findFirst({
@@ -47,14 +55,13 @@ class RecordRepo implements IRecordRepository {
 				subDomainId: true,
 			},
 		});
-		console.log(`resutl value `,result);
+		console.log(`resutl value `, result);
 		return result?.subDomainId || null;
 	}
 	async updateRecordDb(
 		recordData: UpdateRecord,
 		id: string
 	): Promise<SelectRecord> {
-
 		console.log(recordData);
 		console.log(id);
 		const updatedRecord = await this.db
