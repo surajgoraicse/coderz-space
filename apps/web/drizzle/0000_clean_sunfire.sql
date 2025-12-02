@@ -71,32 +71,28 @@ CREATE TABLE "record" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"sub_domain_id" uuid NOT NULL,
 	"provider_record_id" text NOT NULL,
+	"name" text NOT NULL,
 	"type" "record_type" NOT NULL,
 	"content" text NOT NULL,
-	"ttl" integer DEFAULT 300 NOT NULL,
-	"proxied" boolean DEFAULT true NOT NULL,
-	"raw" json,
+	"ttl" integer NOT NULL,
+	"proxied" boolean NOT NULL,
+	"comment" text,
 	"status" "status" DEFAULT 'PENDING' NOT NULL,
 	"version" smallint DEFAULT 1 NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "record_provider_record_id_unique" UNIQUE("provider_record_id")
+	CONSTRAINT "record_provider_record_id_unique" UNIQUE("provider_record_id"),
+	CONSTRAINT "record_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
 CREATE TABLE "sub_domain" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"owner_id" text NOT NULL,
-	"sub_name" text NOT NULL,
-	"name" text NOT NULL,
-	"desired_record_type" "record_type",
-	"desired_target" text,
-	"desired_proxied" boolean,
-	"desired_ttl" integer,
+	"project_name" text NOT NULL,
 	"status" "status" DEFAULT 'PENDING',
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "sub_domain_sub_name_unique" UNIQUE("sub_name"),
-	CONSTRAINT "sub_domain_name_unique" UNIQUE("name")
+	CONSTRAINT "subdomain_owner_project_unique" UNIQUE("owner_id","project_name")
 );
 --> statement-breakpoint
 CREATE TABLE "verification_record" (

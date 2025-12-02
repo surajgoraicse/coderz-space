@@ -5,6 +5,7 @@ import { recordRepo } from "@/repository/record-repo";
 import { NextRequest } from "next/server";
 
 // get all registered dns record of a user in a specific project
+// id = subdomain id
 export async function GET(
 	req: NextRequest,
 	{ params }: { params: { id: string } }

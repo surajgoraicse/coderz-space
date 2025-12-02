@@ -10,9 +10,11 @@ import { subDomain } from "./sub-domain";
 
 export const verificationRecord = pgTable("verification_record", {
 	id: uuid("id").defaultRandom().primaryKey(),
-	subDomainId: uuid("sub_domain_id").references(() => subDomain.id, {
-		onDelete: "cascade",
-	}),
+	subDomainId: uuid("sub_domain_id")
+		.references(() => subDomain.id, {
+			onDelete: "cascade",
+		})
+		.notNull(),
 	platform: platformEnum("platform").notNull(),
 	verificationType: verificationTypeEnum("verification_type").notNull(),
 	name: text("name").unique().notNull(),

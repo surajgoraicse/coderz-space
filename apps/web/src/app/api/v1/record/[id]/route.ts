@@ -24,6 +24,7 @@ export async function PUT(
 		if (!parsedResult.success) {
 			return handleError(parsedResult.error);
 		}
+		console.log(1);
 		const { subDomainId, type, ttl, proxied, content, comment, name } =
 			parsedResult.data;
 		const find = await getSubDomainFromId(subDomainId);
@@ -36,24 +37,22 @@ export async function PUT(
 				}
 			);
 		}
+		console.log(2);
+
 		const isTypeValid = await recordRepo.validateRecordType(
 			type,
 			subDomainId
 		);
-		if (!isTypeValid.success) {
-			return (
-				Response.json(
-					new ApiError(
-						400,
-						isTypeValid.message || "Type Validation Failed"
-					)
-				),
-				{
-					status: 400,
-					statusText: "BAD REQUEST",
-				}
-			);
-		}
+		// TODO: fix this write isType validation here type is alredy there in the db so it is clashing with the prev one.
+		// console.log(2.5, isTypeValid);
+
+		// if (!isTypeValid.success) {
+		// 	return Response.json(new ApiError(400, isTypeValid.message), {
+		// 		status: 400,
+		// 		statusText: "BAD REQUEST",
+		// 	});
+		// }
+		console.log(3);
 
 		const isValidContent = recordRepo.validateRecordContext(content, type);
 		if (!isValidContent.success) {
@@ -70,6 +69,8 @@ export async function PUT(
 				}
 			);
 		}
+		console.log(4);
+
 		const isNameValid = await recordRepo.validateRecordName(name);
 		if (!isNameValid.success) {
 			return (
@@ -85,6 +86,8 @@ export async function PUT(
 				}
 			);
 		}
+		console.log(5);
+
 		const fqdn = `${name}.${process.env.DOMAIN}`;
 		const record = await cloudflareService.updateCFRecord(
 			{
@@ -106,6 +109,7 @@ export async function PUT(
 				}
 			);
 		}
+		console.log(6);
 
 		const dbRecord = await recordRepo.updateRecordDb(
 			{
@@ -115,6 +119,7 @@ export async function PUT(
 				ttl,
 				type,
 				name,
+				
 			},
 			id
 		);
@@ -154,6 +159,7 @@ export async function DELETE(
 				statusText: "Bad Request",
 			});
 		}
+		console.log(1);
 		const subDomainId = await recordRepo.getSubDomainIdFromRecordId(id);
 		if (!subDomainId) {
 			return Response.json(
@@ -164,6 +170,8 @@ export async function DELETE(
 				}
 			);
 		}
+		console.log(2);
+
 		const checkOwnership = await checkOwnershipFromSubDomainId(subDomainId);
 		if (!checkOwnership) {
 			return Response.json(
@@ -174,6 +182,7 @@ export async function DELETE(
 				}
 			);
 		}
+		console.log(3);
 
 		const dbRecord = await recordRepo.deleteRecordDb(id);
 
@@ -186,6 +195,7 @@ export async function DELETE(
 				}
 			);
 		}
+		console.log(4);
 
 		const cfRecord = await cloudflareService.deleteCFRecord(
 			dbRecord.providerRecordId

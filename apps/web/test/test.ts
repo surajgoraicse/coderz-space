@@ -1,5 +1,7 @@
 // import { z } from "zod";
 
+import { recordRepo } from "@/repository/record-repo";
+
 // const ipv4 = z.ipv4();
 // const ipv6 = z.ipv6();
 
@@ -12,4 +14,3 @@
 // } else {
 // 	console.log(parse.data);
 // }
-

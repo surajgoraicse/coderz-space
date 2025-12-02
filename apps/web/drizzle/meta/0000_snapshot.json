@@ -1,5 +1,5 @@
 {
-  "id": "d8d2c49e-ebd9-4e73-852a-32abc0755811",
+  "id": "459e5b59-92ab-436c-95c6-9e03f0201750",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -476,6 +476,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "type": {
           "name": "type",
           "type": "record_type",
@@ -493,19 +499,17 @@
           "name": "ttl",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "default": 300
+          "notNull": true
         },
         "proxied": {
           "name": "proxied",
           "type": "boolean",
           "primaryKey": false,
-          "notNull": true,
-          "default": true
+          "notNull": true
         },
-        "raw": {
-          "name": "raw",
-          "type": "json",
+        "comment": {
+          "name": "comment",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -563,6 +567,13 @@
           "columns": [
             "provider_record_id"
           ]
+        },
+        "record_name_unique": {
+          "name": "record_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
         }
       },
       "policies": {},
@@ -586,42 +597,11 @@
           "primaryKey": false,
           "notNull": true
         },
-        "sub_name": {
-          "name": "sub_name",
+        "project_name": {
+          "name": "project_name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "desired_record_type": {
-          "name": "desired_record_type",
-          "type": "record_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "desired_target": {
-          "name": "desired_target",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "desired_proxied": {
-          "name": "desired_proxied",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "desired_ttl": {
-          "name": "desired_ttl",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
         },
         "status": {
           "name": "status",
@@ -664,18 +644,12 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "sub_domain_sub_name_unique": {
-          "name": "sub_domain_sub_name_unique",
+        "subdomain_owner_project_unique": {
+          "name": "subdomain_owner_project_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "sub_name"
-          ]
-        },
-        "sub_domain_name_unique": {
-          "name": "sub_domain_name_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "name"
+            "owner_id",
+            "project_name"
           ]
         }
       },

@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
 
 		const { subDomainId, type, ttl, proxied, content, comment, name } =
 			parseResult.data;
-
+		
 		const find = await getSubDomainFromId(subDomainId);
 		console.log(2);
 
@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
 				}
 			);
 		}
+		console.log(`type ${type}`);
 		const isTypeValid = await recordRepo.validateRecordType(
 			type,
 			subDomainId
@@ -147,7 +148,8 @@ export async function POST(req: NextRequest) {
 		console.log(5);
 		const fqdn = `${name}.${process.env.DOMAIN}`;
 
-		const isNameValid = await recordRepo.validateRecordName(fqdn);
+		const isNameValid = await recordRepo.validateRecordName(name);
+		console.log(`isNameValid ${JSON.stringify(isNameValid)}`);
 		if (!isNameValid.success) {
 			return (
 				Response.json(

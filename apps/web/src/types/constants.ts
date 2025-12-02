@@ -19,6 +19,7 @@ export const PLATFORM = ["VERCEL"] as const;
 export type Platform = (typeof PLATFORM)[number];
 
 export const VERIFICATION_STATUS = ["PENDING", "VERIFIED", "FAILED"] as const;
+export const VERIFICATION_TYPE = ["TXT", "HTTP"] as const;
 export type verificationStatus = (typeof VERIFICATION_STATUS)[number];
 
 export const AUDIT_ACTIONS = [

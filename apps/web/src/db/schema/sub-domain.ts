@@ -1,10 +1,4 @@
-import {
-	pgTable,
-	primaryKey,
-	text,
-	timestamp,
-	uuid,
-} from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import z from "zod";
 import { user } from "./auth";
@@ -28,7 +22,12 @@ export const subDomain = pgTable(
 			.$onUpdate(() => /* @__PURE__ */ new Date())
 			.notNull(),
 	},
-	(table) => [primaryKey({ columns: [table.ownerId, table.projectName] })]
+	(table) => ({
+		ownerProjectUnique: unique("subdomain_owner_project_unique").on(
+			table.ownerId,
+			table.projectName
+		),
+	})
 );
 
 export const SelectSubDomainSchema = createSelectSchema(subDomain);

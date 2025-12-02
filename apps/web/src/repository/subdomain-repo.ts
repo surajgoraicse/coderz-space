@@ -1,6 +1,11 @@
 // src/repository/subdomain.ts (or similar)
 import { db } from "@/db/db";
-import { InsertSubDomain, SelectSubDomain, subDomain } from "@/db/schema";
+import {
+	InsertSubDomain,
+	InsertSubDomainSchema,
+	SelectSubDomain,
+	subDomain,
+} from "@/db/schema";
 import { DB } from "@/types/types";
 import { CreateSubDomain } from "@/types/zod-schema";
 import { eq } from "drizzle-orm";
@@ -43,11 +48,10 @@ class SubDomainRepository implements ISubDomainRepository {
 	async getSubDomainFromIdUnsafe(
 		id: string
 	): Promise<SelectSubDomain | undefined> {
-		const find = await this.db.query.subDomain
-			.findFirst({
-				where: eq(subDomain.id, id),
-			})
-			
+		const find = await this.db.query.subDomain.findFirst({
+			where: eq(subDomain.id, id),
+		});
+
 		return find;
 	}
 	async createSubDomainDb(subDomainValue: CreateSubDomain) {
@@ -86,10 +90,13 @@ class SubDomainRepository implements ISubDomainRepository {
 		ownerId: string
 	): Promise<boolean> {
 		const find = await this.db.query.subDomain.findFirst({
-			where: (table, { eq }) =>
-				eq(table.projectName, projectName) &&
-				eq(table.ownerId, ownerId),
+			where: (table, { eq, and }) =>
+				and(
+					eq(table.projectName, projectName),
+					eq(table.ownerId, ownerId)
+				),
 		});
+		console.log(`find value : ${JSON.stringify(find)}`);
 		return !!find;
 	}
 	async checkSubDomainExistFromSubName(subName: string): Promise<boolean> {
@@ -138,10 +145,17 @@ class SubDomainRepository implements ISubDomainRepository {
 export const subDomainRepo = new SubDomainRepository(db);
 
 export async function insertSubDomain(data: InsertSubDomain) {
-	const { name, ownerId } = data;
+	const { projectName, ownerId } = data;
+	const parsedData = InsertSubDomainSchema.safeParse(data);
+	if (!parsedData.success) {
+		return null;
+	}
 
 	// 1. MUST use .returning() to get the inserted data as a clean array of objects
-	const insertedRows = await db.insert(subDomain).values(data).returning(); // 👈 ADD THIS BACK
+	const insertedRows = await db
+		.insert(subDomain)
+		.values(parsedData.data)
+		.returning(); // 👈 ADD THIS BACK
 
 	console.log("..... inserted row............");
 	console.log(insertedRows);
@@ -164,9 +178,9 @@ export async function getSubDomainFromId(id: string) {
 	});
 	return find;
 }
-export async function getSubDomainFromSubName(subName: string) {
+export async function getSubDomainFromProjectName(projectName: string) {
 	const find = await db.query.subDomain.findFirst({
-		where: (subDomain, { eq }) => eq(subDomain.subName, subName),
+		where: (subDomain, { eq }) => eq(subDomain.projectName, projectName),
 	});
 	return find;
 }

@@ -6,6 +6,7 @@ import {
 	ROLES,
 	STATUS,
 	VERIFICATION_STATUS,
+	VERIFICATION_TYPE,
 } from "@/types/constants";
 import { pgEnum } from "drizzle-orm/pg-core";
 
@@ -20,10 +21,10 @@ export const status = pgEnum("status", STATUS);
 
 // verification
 export const platformEnum = pgEnum("platform", PLATFORM);
-export const verificationTypeEnum = pgEnum("verification_type", [
-	"TXT",
-	"HTTP",
-]);
+export const verificationTypeEnum = pgEnum(
+	"verification_type",
+	VERIFICATION_TYPE
+);
 export const verificationStatus = pgEnum(
 	"verfication_status",
 	VERIFICATION_STATUS

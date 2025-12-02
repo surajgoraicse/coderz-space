@@ -9,9 +9,9 @@ import {
 	txtSchema,
 } from "@/types/zod-schema";
 import { eq } from "drizzle-orm";
-type UpdateRecord = Pick<
+export type UpdateRecord = Pick<
 	InsertRecord,
-	"comment" | "content" | "proxied" | "ttl" | "type" | "name"
+	"comment" | "content" | "proxied" | "ttl" | "type" | "name" 
 >;
 
 interface IRecordRepository {
@@ -40,18 +40,23 @@ class RecordRepo implements IRecordRepository {
 		this.db = db;
 	}
 	async getSubDomainIdFromRecordId(id: string): Promise<string | null> {
+		console.log(`id value ${id}`);
 		const result = await this.db.query.record.findFirst({
 			where: (records, { eq }) => eq(records.id, id),
 			columns: {
 				subDomainId: true,
 			},
 		});
+		console.log(`resutl value `,result);
 		return result?.subDomainId || null;
 	}
 	async updateRecordDb(
 		recordData: UpdateRecord,
 		id: string
 	): Promise<SelectRecord> {
+
+		console.log(recordData);
+		console.log(id);
 		const updatedRecord = await this.db
 			.update(record)
 			.set({
@@ -62,7 +67,7 @@ class RecordRepo implements IRecordRepository {
 				type: recordData.type,
 				name: recordData.name,
 			})
-			.where(eq(record.id, id))
+			.where(eq(record.providerRecordId, id))
 			.returning();
 		return updatedRecord[0];
 	}
@@ -115,28 +120,73 @@ class RecordRepo implements IRecordRepository {
 		console.log(".................create record in db...............");
 		return create[0];
 	}
+	// async validateRecordType(type: RecordTypes, subDomainId: string) {
+	// 	// this function validates a new record type : return true if all good otherwise false
+	// 	// checks if a record already exists : if 'A' already exist then it wont allow to create an another one
+	// 	// checks if 'cname' already exists : if exist then it wont allow to create any other record on the name
+	// 	// allows multiple txt record.
+
+	// 	const records = await this.getAllRecordsFromSubDomainId(subDomainId);
+	// 	console.log(`records all ${records}`);
+	// 	// no existing records -> always allowed
+	// 	if (!records || records.length === 0) {
+	// 		return { success: true, message: undefined };
+	// 	}
+	// 	const exist = records.some(
+	// 		(record) =>
+	// 			!(
+	// 				(record.type === type && record.type !== "TXT") ||
+	// 				record.type === "CNAME"
+	// 			)
+	// 	);
+	// 	console.log("i am hereeee", exist);
+	// 	if (!exist) {
+	// 		return { success: false, message: "Type Validation Failed" };
+	// 	}
+	// 	return {
+	// 		success: true,
+	// 		message: undefined,
+	// 	};
+	// }
 	async validateRecordType(type: RecordTypes, subDomainId: string) {
 		// this function validates a new record type : return true if all good otherwise false
-		// checks if a record already exists : if 'A' already exist then it wont allow to create an another one
-		// checks if 'cname' already exists : if exist then it wont allow to create any other record on the name
-		// allows multiple txt record.
-
+		// 	// checks if a record already exists : if 'A' already exist then it wont allow to create an another one
+		// 	// checks if 'cname' already exists : if exist then it wont allow to create any other record on the name
+		// 	// allows multiple txt record.
 		const records = await this.getAllRecordsFromSubDomainId(subDomainId);
-		if (!records) {
-			return { success: true, message: "" };
+
+		// If no records exist → always allowed
+		if (!records || records.length === 0) {
+			return { success: true, message: undefined };
 		}
-		const exist = records.some(
-			(record) =>
-				(record.type === type && record.type !== "TXT") ||
-				record.type === "CNAME"
-		);
-		if (!exist) {
-			return { success: false, message: "Type Validation Failed" };
+
+		// 1. If CNAME exists → block ALL other types (including TXT)
+		if (records.some((r) => r.type === "CNAME")) {
+			return {
+				success: false,
+				message:
+					"CNAME record already exists. No other records allowed.",
+			};
 		}
-		return {
-			success: true,
-			message: undefined,
-		};
+
+		// 2. If new type = CNAME → must be first record
+		if (type === "CNAME") {
+			return {
+				success: false,
+				message: "Cannot create CNAME: other records already exist.",
+			};
+		}
+
+		// 3. If record of same type exists → block duplicates (except TXT)
+		if (type !== "TXT" && records.some((r) => r.type === type)) {
+			return {
+				success: false,
+				message: `${type} record already exists.`,
+			};
+		}
+
+		// 4. TXT allowed freely (as long as no CNAME exists)
+		return { success: true, message: undefined };
 	}
 
 	// async validateRecordName(

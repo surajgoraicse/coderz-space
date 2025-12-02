@@ -91,6 +91,7 @@ export default function handleError(error: unknown) {
 
 	// 4. Handle Standard JS Errors (Manual throws)
 	if (error instanceof Error) {
+		console.log(JSON.stringify(error));
 		return NextResponse.json(
 			new ApiError(500, "Application Error", error.message),
 			{ status: 500 }

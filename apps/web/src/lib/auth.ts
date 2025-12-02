@@ -57,5 +57,7 @@ export async function getUserIdFromSession() {
 export async function checkOwnershipFromSubDomainId(subDomainId: string) {
 	const ownerId = await getUserIdFromSession();
 	const subDomain = await subDomainRepo.getSubDomainFromIdUnsafe(subDomainId);
-	return subDomain?.ownerId === ownerId;
+	if (subDomain?.ownerId === ownerId) {
+		return ownerId;
+	} else return null;
 }

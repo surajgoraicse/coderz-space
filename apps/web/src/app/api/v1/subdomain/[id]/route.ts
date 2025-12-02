@@ -1,6 +1,9 @@
 import handleError, { ApiError } from "@/lib/api-error";
 import ApiResponse from "@/lib/api-response";
-import { getUserIdFromSession } from "@/lib/auth";
+import {
+	checkOwnershipFromSubDomainId,
+	getUserIdFromSession,
+} from "@/lib/auth";
 import { recordRepo } from "@/repository/record-repo";
 import { subDomainRepo } from "@/repository/subdomain-repo";
 import cloudflareService from "@/service/cloudflare-service";
@@ -23,13 +26,14 @@ export async function GET(
 				}
 			);
 		}
-		const ownerId = await getUserIdFromSession();
+		const ownerId= await checkOwnershipFromSubDomainId(subDomainId);
 		if (!ownerId) {
 			return Response.json(new ApiResponse(401, "Unauthorized", false), {
 				status: 401,
 				statusText: "Unauthorized",
 			});
 		}
+
 		console.log("hello 2");
 		const subDomain = await subDomainRepo.getSubDomainFromId(
 			subDomainId,
@@ -181,6 +185,7 @@ export async function PUT(
 			}
 		);
 	}
+	console.log(`project name : ${projectName}`);
 
 	const existingSubDomain =
 		await subDomainRepo.checkSubDomainExistFromProjectName(
